@@ -14,15 +14,15 @@ interface ClientType {
   label: string;
 }
 
-export interface GameRole {
+interface GameRole {
   zoneName: string;
   roleName: string;
   serverName: string;
   kungfuId: string;
-  panelList: panelList;
+  panelList: PanelList;
 }
 
-export interface panelList {
+interface PanelList {
   score: number;
   panel: {
     name: string;
@@ -30,27 +30,29 @@ export interface panelList {
     value: number;
   }[];
 }
+type RoleStatus = "RoleSelecting" | "AtHome" | "AtRoom" | "AtTeam";
 
-export interface ServerToClientEvents {
+interface ServerToClientEvents {
   $error: (code: number, detail: string) => void;
-  $roleStatus: (status: string, isMatching: boolean) => void;
+  $roleAlreadyOnline: () => void;
+  $roleStatus: (status: RoleStatus, isMatching: boolean) => void;
   $roleInfo: (data: GameRole) => void;
   $staticData: (
     server: Server[],
-    teamType: TeamType[],
-    clientType: ClientType[]
+    teamTypes: TeamType[],
+    clientTypes: ClientType[]
   ) => void;
   $roomInfo: (
     _id: number,
     members: GameRole[],
     isOnwer: boolean,
-    status: string
+    isMatching: boolean
   ) => void;
   $roomMembers: (members: GameRole[]) => void;
   $roomStatus: (status: string) => void;
 }
 
-export interface ClientToServerEvents {
+interface ClientToServerEvents {
   $role: (server: string, name: string) => void;
   $newRoom: (password: string) => void;
   $joinRoom: (roomId: number, password: string) => void;
@@ -61,11 +63,24 @@ export interface ClientToServerEvents {
   $exitRoom: () => void;
 }
 
-export interface InterServerEvents {
+interface InterServerEvents {
   ping: () => void;
 }
 
-export interface SocketData {
+interface SocketData {
   server: string;
-  name: number;
+  name: string;
 }
+
+export type {
+  Server,
+  TeamType,
+  ClientType,
+  RoleStatus,
+  GameRole,
+  PanelList,
+  ServerToClientEvents,
+  ClientToServerEvents,
+  InterServerEvents,
+  SocketData,
+};

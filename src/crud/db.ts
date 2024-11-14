@@ -1,5 +1,5 @@
 import PouchDB from 'pouchdb';
-import { GameRole } from '../types';
+import { GameRole, RoleStatus } from '../types';
 
 PouchDB.plugin(require('pouchdb-find'));
 
@@ -10,8 +10,6 @@ interface RoomDoc {
   isMatching: boolean;
   members: GameRole[];
 }
-
-type RoleStatus = 'RoleSelecting' | 'AtHome' | 'AtRoom' | 'AtTeam';
 
 interface RoleDoc {
   _id: string;

@@ -1,4 +1,4 @@
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import logger from './log';
 import {
   ServerToClientEvents,
@@ -6,8 +6,6 @@ import {
   InterServerEvents,
   SocketData,
 } from './types';
-import { findRoleById } from './crud/roles';
-import { getRoleLabel } from './utils';
 
 logger.info('准备启动 Socket.IO 服务');
 
@@ -23,16 +21,28 @@ const io = new Server<
   },
 });
 
+const userSockets: Map<string, Socket> = new Map();
+
 io.on('connection', socket => {
-  logger.info(`客户端 ${socket.handshake.address} 成功建立连接`);
   socket.on('disconnect', () => {
-    logger.info(`客户端 ${socket.handshake.address} 断开连接。`);
+    logger.info(`客户端 ${fingerPrint} 断开连接。`);
+    userSockets.delete(fingerPrint);
   });
-  socket.on('$role', async (server, name) => {
-    let role = await findRoleById(getRoleLabel(server, name));
-    if (!role) {
-    }
-  });
+
+  const { fingerPrint, server, name } = socket.handshake.auth;
+  socket.data.server = server;
+  socket.data.name = name;
+
+  const anotherSocket = userSockets.get(fingerPrint);
+  if (anotherSocket) {
+    logger.info(`用户 ${fingerPrint} 被挤下线。`);
+    socket.emit('$roleAlreadyOnline');
+    anotherSocket.disconnect(true);
+    socket.disconnect(true);
+  } else {
+    userSockets.set(fingerPrint, socket);
+    logger.info(`用户 ${fingerPrint} 登陆。`);
+  }
 });
 
 logger.info('Socket.IO 服务在端口13000上运行。');

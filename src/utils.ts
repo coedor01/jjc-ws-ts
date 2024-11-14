@@ -20,7 +20,31 @@ function getRoom(id: number | string) {
 }
 
 function getRoleLabel(server: string, name: string) {
-  return `${server}·${name}`;
+  return `${name}·${server}`;
 }
 
-export { readLocalJsonFile, getRandomInt, getRoom, getRoleLabel };
+function calculateBasicAuthNodeDecode(authHeader: string) {
+  if (!authHeader.startsWith('Basic ')) {
+    throw new Error('Invalid Basic Auth header');
+  }
+
+  // 获取 Base64 编码的部分
+  const encodedCredentials = authHeader.slice(6);
+
+  // 使用 Buffer 解码 Base64
+  const decodedCredentials = Buffer.from(encodedCredentials, 'base64').toString(
+    'utf-8'
+  );
+
+  // 返回解码后的用户名和密码
+  const [username, password] = decodedCredentials.split(':');
+  return { username, password };
+}
+
+export {
+  readLocalJsonFile,
+  getRandomInt,
+  getRoom,
+  getRoleLabel,
+  calculateBasicAuthNodeDecode,
+};
