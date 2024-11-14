@@ -1,5 +1,5 @@
 import PouchDB from 'pouchdb';
-import { GameRole, RoleStatus } from '../types';
+import { GameRole, UserStatus, UserStatusDoc } from '../types';
 
 PouchDB.plugin(require('pouchdb-find'));
 
@@ -11,17 +11,10 @@ interface RoomDoc {
   members: GameRole[];
 }
 
-interface RoleDoc {
-  _id: string;
-  status: RoleStatus;
-  isMatching: boolean;
-  roomId: number | null;
-  teamId: number | null;
-  attribute: GameRole;
-}
-
 const roomDocs: PouchDB.Database<RoomDoc> = new PouchDB('db/rooms');
-const roleDocs: PouchDB.Database<RoleDoc> = new PouchDB('db/roles');
+const userStatusDocs: PouchDB.Database<UserStatusDoc> = new PouchDB(
+  'db/userStatus'
+);
 
 async function checkExist(
   db: PouchDB.Database<any>,
@@ -41,4 +34,11 @@ async function checkExist(
   }
 }
 
-export { RoleDoc, RoomDoc, RoleStatus, roomDocs, roleDocs, checkExist };
+export {
+  RoomDoc,
+  UserStatusDoc,
+  UserStatus,
+  roomDocs,
+  userStatusDocs,
+  checkExist,
+};

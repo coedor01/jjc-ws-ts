@@ -30,15 +30,23 @@ interface PanelList {
     value: number;
   }[];
 }
-type RoleStatus = "RoleSelecting" | "AtHome" | "AtRoom" | "AtTeam";
+
+interface UserStatusDoc {
+  _id: string;
+  status: UserStatus;
+  isMatching: boolean;
+  roomId: number | null;
+  teamId: number | null;
+}
+
+type UserStatus = "AtHome" | "AtRoom" | "AtTeam";
 
 interface ServerToClientEvents {
   $error: (code: number, detail: string) => void;
-  $roleAlreadyOnline: () => void;
-  $roleStatus: (status: RoleStatus, isMatching: boolean) => void;
+  $userAlreadyOnline: () => void;
+  $userStatus: (data: UserStatusDoc) => void;
   $roleInfo: (data: GameRole) => void;
   $staticData: (
-    server: Server[],
     teamTypes: TeamType[],
     clientTypes: ClientType[]
   ) => void;
@@ -76,7 +84,8 @@ export type {
   Server,
   TeamType,
   ClientType,
-  RoleStatus,
+  UserStatus,
+  UserStatusDoc,
   GameRole,
   PanelList,
   ServerToClientEvents,
