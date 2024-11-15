@@ -41,10 +41,15 @@ function calculateBasicAuthNodeDecode(authHeader: string) {
   return { username, password };
 }
 
+function getSTimestamp(date: Date) {
+  return Math.floor(date.getTime() / 1000);
+}
+
 export {
   readLocalJsonFile,
   getRandomInt,
   getRoomLabel,
   getRoleLabel,
   calculateBasicAuthNodeDecode,
+  getSTimestamp,
 };

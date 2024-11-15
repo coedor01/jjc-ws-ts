@@ -11,10 +11,30 @@ interface RoomDoc {
   members: UserGameRole[];
 }
 
+interface MatchingUserRoleDoc {
+  _id: string;
+  roomId: string | null;
+  startAt: number;
+  teamTypeId: number;
+  clientTypeId: number;
+  kungfuId: string;
+  grade: number;
+  mmr: number;
+  teamMembersMaxCount: number;
+}
+
 const roomDocs: PouchDB.Database<RoomDoc> = new PouchDB('db/rooms');
 const userStatusDocs: PouchDB.Database<UserStatusDoc> = new PouchDB(
   'db/userStatus'
 );
+const matchingUserRoleDocs: PouchDB.Database<MatchingUserRoleDoc> = new PouchDB(
+  'db/matchingUserRoleDoc'
+);
+userStatusDocs.createIndex({
+  index: {
+    fields: ['isMatching'],
+  },
+});
 
 async function checkExist(
   db: PouchDB.Database<any>,
@@ -38,7 +58,9 @@ export {
   RoomDoc,
   UserStatusDoc,
   UserStatus,
+  MatchingUserRoleDoc,
   roomDocs,
   userStatusDocs,
+  matchingUserRoleDocs,
   checkExist,
 };

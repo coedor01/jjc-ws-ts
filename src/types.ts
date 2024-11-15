@@ -77,9 +77,9 @@ interface ClientToServerEvents {
   $role: (server: string, name: string) => void;
   $newRoom: (password: string) => void;
   $joinRoom: (roomId: string, password: string) => void;
-  $startSingleMatch: (teamTypeId: string, clientTypeId: string) => void;
+  $startSingleMatch: (teamTypeId: number, clientTypeId: number) => void;
   $cancelSingleMatch: () => void;
-  $startRoomMatch: (teamTypeId: string, clientTypeId: string) => void;
+  $startRoomMatch: (teamTypeId: number, clientTypeId: number) => void;
   $cacnelRoomMatch: () => void;
   $exitRoom: () => void;
 }

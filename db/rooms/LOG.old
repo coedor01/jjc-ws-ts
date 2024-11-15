@@ -1,5 +1,5 @@
-2024/11/15-16:40:17.670 c3c Recovering log #6
-2024/11/15-16:40:17.670 c3c Level-0 table #8: started
-2024/11/15-16:40:17.706 c3c Level-0 table #8: 1261 bytes OK
-2024/11/15-16:40:17.776 c3c Delete type=0 #6
-2024/11/15-16:40:17.776 c3c Delete type=3 #4
+2024/11/15-21:18:50.686 6460 Recovering log #28
+2024/11/15-21:18:50.686 6460 Level-0 table #31: started
+2024/11/15-21:18:50.755 6460 Level-0 table #31: 237 bytes OK
+2024/11/15-21:18:50.836 6460 Delete type=0 #28
+2024/11/15-21:18:50.836 6460 Delete type=3 #26

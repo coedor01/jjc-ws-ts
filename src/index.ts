@@ -5,6 +5,8 @@ import {
   ClientToServerEvents,
   InterServerEvents,
   SocketData,
+  TeamType,
+  ClientType,
 } from './types';
 import {
   createUserStatus,
@@ -19,9 +21,14 @@ import {
   findRoomById,
   changeRoomMembers,
 } from './crud/rooms';
-import { getUserRoom } from './services';
+import { getUserRoom, match } from './services';
 import { getRoleInfo } from './api';
 import { getRandomInt, getRoomLabel, readLocalJsonFile } from './utils';
+import {
+  createMatchingUserRole,
+  deleteMatchingUserRole,
+  findAllMatchingUserRole,
+} from './crud/matchingUserRole';
 
 logger.info('准备启动 Socket.IO 服务');
 
@@ -38,8 +45,8 @@ const io = new Server<
 });
 
 const userSockets: Map<string, Socket> = new Map();
-const teamTypes = readLocalJsonFile('teamTypes.json');
-const clientTypes = readLocalJsonFile('clientTypes.json');
+const teamTypes: TeamType[] = readLocalJsonFile('teamTypes.json');
+const clientTypes: ClientType[] = readLocalJsonFile('clientTypes.json');
 
 io.on('connection', async socket => {
   socket.on('disconnect', () => {
@@ -50,11 +57,20 @@ io.on('connection', async socket => {
   socket.on('$startSingleMatch', async (teamTypeId, clientTypeId) => {
     logger.info(`teamTypeId=${teamTypeId} clientTypeId=${clientTypeId}`);
     const userStatus = await changeUserIsMatching(socket.data.userId, true);
+    await createMatchingUserRole(
+      socket.data.userId,
+      socket.data.server,
+      socket.data.name,
+      teamTypeId,
+      clientTypeId,
+      teamTypes[teamTypeId - 1].maxMemberCount
+    );
     socket.emit('$userStatus', userStatus);
   });
 
   socket.on('$cancelSingleMatch', async () => {
     const userStatus = await changeUserIsMatching(socket.data.userId, false);
+    await deleteMatchingUserRole(socket.data.userId);
     socket.emit('$userStatus', userStatus);
   });
 
@@ -189,3 +205,20 @@ io.on('connection', async socket => {
 });
 
 logger.info('Socket.IO 服务在端口13000上运行。');
+
+logger.info('准备启动匹配服务。');
+setInterval(async () => {
+  const res = await findAllMatchingUserRole();
+  const docs = res.rows.map(item => item.doc);
+
+  const maxMateCountMap: Map<number, number> = new Map();
+  for (const item of teamTypes) {
+    maxMateCountMap.set(item.id, item.maxMemberCount);
+  }
+
+  //@ts-ignore
+  const matchResult = match(docs, maxMateCountMap);
+
+  console.log(`matchResult=${JSON.stringify(matchResult)}`);
+}, 1000);
+logger.info('匹配服务已启动。');
