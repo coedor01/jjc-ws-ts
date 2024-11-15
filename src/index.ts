@@ -6,9 +6,22 @@ import {
   InterServerEvents,
   SocketData,
 } from './types';
-import { createUserStatus, findUserStatusById } from './crud/userStatus';
+import {
+  createUserStatus,
+  findUserStatusById,
+  changeUserStatus,
+  changeUserRoomId,
+  changeUserIsMatching,
+} from './crud/userStatus';
+import {
+  hasRoom,
+  createRoom,
+  findRoomById,
+  changeRoomMembers,
+} from './crud/rooms';
+import { getUserRoom } from './services';
 import { getRoleInfo } from './api';
-import { readLocalJsonFile } from './utils';
+import { getRandomInt, getRoomLabel, readLocalJsonFile } from './utils';
 
 logger.info('准备启动 Socket.IO 服务');
 
@@ -19,7 +32,7 @@ const io = new Server<
   SocketData
 >(13000, {
   cors: {
-    origin: ['http://127.0.0.1:3000', 'http://localhost:3000'],
+    origin: '*',
     credentials: true,
   },
 });
@@ -34,7 +47,102 @@ io.on('connection', async socket => {
     userSockets.delete(fingerprint);
   });
 
+  socket.on('$startSingleMatch', async (teamTypeId, clientTypeId) => {
+    logger.info(`teamTypeId=${teamTypeId} clientTypeId=${clientTypeId}`);
+    const userStatus = await changeUserIsMatching(socket.data.userId, true);
+    socket.emit('$userStatus', userStatus);
+  });
+
+  socket.on('$cancelSingleMatch', async () => {
+    const userStatus = await changeUserIsMatching(socket.data.userId, false);
+    socket.emit('$userStatus', userStatus);
+  });
+
+  socket.on('$newRoom', async password => {
+    // 创建房间
+    let rand = '';
+    do {
+      rand = getRandomInt(100000, 999999).toString();
+    } while (await hasRoom(rand));
+    const gameRole = await getRoleInfo(socket.data.server, socket.data.name);
+    const room = await createRoom(rand, password, socket.data.userId, [
+      {
+        userId: socket.data.userId,
+        gameRole,
+      },
+    ]);
+
+    // 给房主发送房间信息
+    const { _id, members, owner, isMatching } = room;
+    socket.emit('$roomInfo', _id, members, owner, isMatching);
+
+    // 更改用户状态
+    await changeUserStatus(socket.data.userId, 'AtRoom');
+    const userStatus = await changeUserRoomId(socket.data.userId, room._id);
+    socket.emit('$userStatus', userStatus);
+
+    // 加入socketio的room，可以接收到房间内广播
+    socket.join(getRoomLabel(room._id));
+  });
+
+  socket.on('$joinRoom', async (roomId, password) => {
+    const room = await findRoomById(roomId);
+    if (!room) {
+      socket.emit('$error', 10000, '房间不存在');
+      return;
+    }
+    if (room?.password !== password) {
+      socket.emit('$error', 10001, '房间密码错误');
+      return;
+    }
+
+    // 更新房间成员列表
+    const gameRole = await getRoleInfo(socket.data.server, socket.data.name);
+    const newMembers = [
+      ...room.members,
+      {
+        userId: socket.data.userId,
+        gameRole,
+      },
+    ];
+    const newRoom = await changeRoomMembers(roomId, newMembers);
+
+    // 给新加入者发送房间信息
+    const { _id, members, owner, isMatching } = newRoom;
+    socket.emit('$roomInfo', _id, members, owner, isMatching);
+    await changeUserStatus(socket.data.userId, 'AtRoom');
+    const userStatus = await changeUserRoomId(socket.data.userId, _id);
+
+    // 给新加入者更新用户状态
+    await socket.emit('$userStatus', userStatus);
+
+    // 给现有成员发送新成员信息
+    io.to(getRoomLabel(room._id)).emit('$roomMembers', members);
+
+    // 新成员加入socketio的room，可以接收到房间内广播
+    socket.join(getRoomLabel(room._id));
+  });
+
+  socket.on('$exitRoom', async () => {
+    const room = await getUserRoom(socket.data.userId);
+    if (room) {
+      // 离开socketio的room，收不到房间内广播
+      socket.leave(getRoomLabel(room._id));
+
+      const newMembers = room.members.filter(
+        item => item.userId !== socket.data.userId
+      );
+      await changeRoomMembers(room._id, newMembers);
+      io.to(getRoomLabel(room._id)).emit('$roomMembers', newMembers);
+
+      await changeUserStatus(socket.data.userId, 'AtHome');
+      const userStatus = await changeUserRoomId(socket.data.userId, null);
+      socket.emit('$userStatus', userStatus);
+    }
+  });
+
   const { fingerprint, server, name } = socket.handshake.auth;
+  socket.data.userId = fingerprint;
   socket.data.server = server;
   socket.data.name = name;
   const anotherSocket = userSockets.get(fingerprint);
@@ -59,11 +167,24 @@ io.on('connection', async socket => {
     socket.emit('$userStatus', userStatus);
 
     // 推送角色信息
-    const roleInfo = await getRoleInfo(server, name);
-    socket.emit('$roleInfo', roleInfo);
+    const gameRole = await getRoleInfo(server, name);
+    socket.emit('$roleInfo', { userId: socket.data.userId, gameRole });
 
     // 推送静态信息
     socket.emit('$staticData', teamTypes, clientTypes);
+
+    // 不同状态下的首次推送
+    switch (userStatus.status) {
+      case 'AtRoom':
+        if (userStatus.roomId) {
+          const room = await findRoomById(userStatus.roomId);
+          if (room) {
+            const { _id, members, owner, isMatching } = room;
+            socket.emit('$roomInfo', _id, members, owner, isMatching);
+            socket.join(getRoomLabel(room._id));
+          }
+        }
+    }
   }
 });
 

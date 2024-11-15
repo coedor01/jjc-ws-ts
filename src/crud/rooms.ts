@@ -1,12 +1,17 @@
 import { checkExist, RoomDoc, roomDocs } from './db';
+import { UserGameRole } from '../types';
 
-async function createRoom({
-  _id,
-  password,
-  owner,
-  isMatching,
-  members,
-}: RoomDoc): Promise<RoomDoc> {
+async function hasRoom(_id: string) {
+  return await checkExist(roomDocs, _id);
+}
+
+async function createRoom(
+  _id: string,
+  password: string,
+  owner: string,
+  members: UserGameRole[],
+  isMatching: boolean = false
+): Promise<RoomDoc> {
   const res = await roomDocs.put({ _id, password, owner, isMatching, members });
   const doc = await roomDocs.get(res.id);
   return doc;
@@ -42,10 +47,22 @@ async function changeRoomStatus(
   return doc;
 }
 
-module.exports = {
+async function changeRoomMembers(
+  _id: string,
+  members: UserGameRole[]
+): Promise<RoomDoc> {
+  const doc = await roomDocs.get(_id);
+  doc.members = members;
+  roomDocs.put(doc);
+  return doc;
+}
+
+export {
+  hasRoom,
   createRoom,
   findRoomById,
   deleteRoom,
   changeRoomOwner,
   changeRoomStatus,
+  changeRoomMembers,
 };

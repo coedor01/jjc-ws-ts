@@ -15,7 +15,7 @@ function getRandomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function getRoom(id: number | string) {
+function getRoomLabel(id: number | string) {
   return `ROOM-${id}`;
 }
 
@@ -44,7 +44,7 @@ function calculateBasicAuthNodeDecode(authHeader: string) {
 export {
   readLocalJsonFile,
   getRandomInt,
-  getRoom,
+  getRoomLabel,
   getRoleLabel,
   calculateBasicAuthNodeDecode,
 };

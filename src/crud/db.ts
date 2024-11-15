@@ -1,5 +1,5 @@
 import PouchDB from 'pouchdb';
-import { GameRole, UserStatus, UserStatusDoc } from '../types';
+import { UserGameRole, UserStatus, UserStatusDoc } from '../types';
 
 PouchDB.plugin(require('pouchdb-find'));
 
@@ -8,7 +8,7 @@ interface RoomDoc {
   password: string;
   owner: string;
   isMatching: boolean;
-  members: GameRole[];
+  members: UserGameRole[];
 }
 
 const roomDocs: PouchDB.Database<RoomDoc> = new PouchDB('db/rooms');

@@ -12,8 +12,8 @@ async function createUserStatus(
   _id: string,
   status: UserStatus = 'AtHome',
   isMatching: boolean = false,
-  roomId: number | null = null,
-  teamId: number | null = null
+  roomId: string | null = null,
+  teamId: string | null = null
 ): Promise<UserStatusDoc> {
   const res = await userStatusDocs.put({
     _id,
@@ -26,7 +26,7 @@ async function createUserStatus(
   return doc;
 }
 
-async function patchUserStatus(
+async function changeUserStatus(
   _id: string,
   status: UserStatus
 ): Promise<UserStatusDoc> {
@@ -36,7 +36,7 @@ async function patchUserStatus(
   return doc;
 }
 
-async function patchUserIsMatching(
+async function changeUserIsMatching(
   _id: string,
   isMatching: boolean
 ): Promise<UserStatusDoc> {
@@ -46,9 +46,9 @@ async function patchUserIsMatching(
   return doc;
 }
 
-async function patchUserRoomId(
+async function changeUserRoomId(
   _id: string,
-  roomId: number | null
+  roomId: string | null
 ): Promise<UserStatusDoc> {
   const doc = await userStatusDocs.get(_id);
   doc.roomId = roomId;
@@ -56,9 +56,9 @@ async function patchUserRoomId(
   return doc;
 }
 
-async function patchUserTeamId(
+async function changeUserTeamId(
   _id: string,
-  teamId: number | null
+  teamId: string | null
 ): Promise<UserStatusDoc> {
   const doc = await userStatusDocs.get(_id);
   doc.teamId = teamId;
@@ -69,8 +69,8 @@ async function patchUserTeamId(
 export {
   findUserStatusById,
   createUserStatus,
-  patchUserStatus,
-  patchUserIsMatching,
-  patchUserRoomId,
-  patchUserTeamId,
+  changeUserStatus,
+  changeUserIsMatching,
+  changeUserRoomId,
+  changeUserTeamId,
 };
