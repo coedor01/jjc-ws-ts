@@ -1,15 +1,29 @@
 import { matchingUserRoleDocs } from './db';
 import { getSTimestamp } from '../utils';
 
-async function createMatchingUserRole(
-  userId: string,
-  server: string,
-  name: string,
-  clientTypeId: number,
-  teamTypeId: number,
-  teamMembersMaxCount: number,
-  roomId: string | null = null
-) {
+interface createProps {
+  userId: string;
+  server: string;
+  name: string;
+  clientTypeId: number;
+  teamTypeId: number;
+  kungfuId: string;
+  grade: number;
+  mmr: number;
+  roomId?: string | null;
+}
+
+async function createMatchingUserRole({
+  userId,
+  server,
+  name,
+  clientTypeId,
+  teamTypeId,
+  kungfuId,
+  grade,
+  mmr,
+  roomId = null,
+}: createProps) {
   const now = new Date();
   const startAt = getSTimestamp(now);
   await matchingUserRoleDocs.put({
@@ -20,7 +34,9 @@ async function createMatchingUserRole(
     startAt,
     clientTypeId,
     teamTypeId,
-    teamMembersMaxCount,
+    kungfuId,
+    grade,
+    mmr,
   });
 }
 

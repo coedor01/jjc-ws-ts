@@ -1,4 +1,4 @@
-import { Server, Socket } from 'socket.io';
+import { Server } from 'socket.io';
 import logger from './log';
 import {
   ServerToClientEvents,
@@ -7,6 +7,8 @@ import {
   SocketData,
   TeamType,
   ClientType,
+  MatchingUserGameRole,
+  TypedServerSocket,
 } from './types';
 import {
   createUserStatus,
@@ -14,6 +16,8 @@ import {
   changeUserStatus,
   changeUserRoomId,
   changeUserIsMatching,
+  changeUserMatchingId,
+  changeUserIsMatchingReady,
 } from './crud/userStatus';
 import {
   hasRoom,
@@ -21,14 +25,28 @@ import {
   findRoomById,
   changeRoomMembers,
 } from './crud/rooms';
-import { getUserRoom, match } from './services';
-import { getRoleInfo } from './api';
-import { getRandomInt, getRoomLabel, readLocalJsonFile } from './utils';
+import { endMatching, getUserRoom, matchJJC } from './services';
+import { getRoleInfo, getJJCPerformance } from './api';
+import {
+  createMatchingId,
+  getMatchingLabel,
+  getRandomInt,
+  getRoomLabel,
+  getSTimestamp,
+  readLocalJsonFile,
+} from './utils';
 import {
   createMatchingUserRole,
   deleteMatchingUserRole,
   findAllMatchingUserRole,
 } from './crud/matchingUserRole';
+import {
+  createMatchingInfo,
+  deleteMatchingInfo,
+  findMatchingInfoById,
+  changeMatchingInfoMates,
+  findAllMatchingInfo,
+} from './crud/matchingInfos';
 
 logger.info('准备启动 Socket.IO 服务');
 
@@ -44,7 +62,7 @@ const io = new Server<
   },
 });
 
-const userSockets: Map<string, Socket> = new Map();
+const userSockets: Map<string, TypedServerSocket> = new Map();
 const teamTypes: TeamType[] = readLocalJsonFile('teamTypes.json');
 const clientTypes: ClientType[] = readLocalJsonFile('clientTypes.json');
 
@@ -57,14 +75,18 @@ io.on('connection', async socket => {
   socket.on('$startSingleMatch', async (teamTypeId, clientTypeId) => {
     logger.info(`teamTypeId=${teamTypeId} clientTypeId=${clientTypeId}`);
     const userStatus = await changeUserIsMatching(socket.data.userId, true);
-    await createMatchingUserRole(
-      socket.data.userId,
-      socket.data.server,
-      socket.data.name,
-      teamTypeId,
+    const roleInfo = getRoleInfo(socket.data.server, socket.data.name);
+    const jjcPerf = getJJCPerformance(socket.data.server, socket.data.name);
+    await createMatchingUserRole({
+      userId: socket.data.userId,
+      server: socket.data.server,
+      name: socket.data.name,
       clientTypeId,
-      teamTypes[teamTypeId - 1].maxMemberCount
-    );
+      teamTypeId,
+      kungfuId: roleInfo.kungfuId,
+      grade: jjcPerf.grade,
+      mmr: jjcPerf.mmr,
+    });
     socket.emit('$userStatus', userStatus);
   });
 
@@ -80,7 +102,7 @@ io.on('connection', async socket => {
     do {
       rand = getRandomInt(100000, 999999).toString();
     } while (await hasRoom(rand));
-    const gameRole = await getRoleInfo(socket.data.server, socket.data.name);
+    const gameRole = getRoleInfo(socket.data.server, socket.data.name);
     const room = await createRoom(rand, password, socket.data.userId, [
       {
         userId: socket.data.userId,
@@ -113,7 +135,7 @@ io.on('connection', async socket => {
     }
 
     // 更新房间成员列表
-    const gameRole = await getRoleInfo(socket.data.server, socket.data.name);
+    const gameRole = getRoleInfo(socket.data.server, socket.data.name);
     const newMembers = [
       ...room.members,
       {
@@ -157,6 +179,54 @@ io.on('connection', async socket => {
     }
   });
 
+  socket.on('$acceptMatching', async () => {
+    const userStatus = await findUserStatusById(socket.data.userId);
+
+    if (userStatus && userStatus.matchingId) {
+      const matchingInfo = await findMatchingInfoById(userStatus.matchingId);
+
+      if (matchingInfo) {
+        // 修改匹配记录中的准备状态
+        const newMates = [];
+        for (const mate of matchingInfo.mates) {
+          if (mate.userId === socket.data.userId) {
+            newMates.push({ ...mate, isReady: true });
+          } else {
+            newMates.push(mate);
+          }
+        }
+        const newMatchingInfo = await changeMatchingInfoMates(
+          userStatus.matchingId,
+          newMates
+        );
+        io.to(getMatchingLabel(userStatus.matchingId)).emit(
+          '$matchingInfo',
+          newMatchingInfo
+        );
+
+        // 修改用户的准备状态
+        const newUserStatus = await changeUserIsMatchingReady(
+          socket.data.userId,
+          true
+        );
+        socket.emit('$userStatus', newUserStatus);
+      }
+    }
+  });
+
+  socket.on('$rejectMatching', async () => {
+    const userStatus = await findUserStatusById(socket.data.userId);
+    if (userStatus && userStatus.matchingId) {
+      const matchingInfo = await findMatchingInfoById(userStatus.matchingId);
+      // 修改匹配成员的用户状态
+      if (matchingInfo) {
+        await endMatching(matchingInfo, userSockets);
+      }
+      // 删除匹配信息
+      await deleteMatchingInfo(userStatus.matchingId);
+    }
+  });
+
   const { fingerprint, server, name } = socket.handshake.auth;
   socket.data.userId = fingerprint;
   socket.data.server = server;
@@ -183,7 +253,7 @@ io.on('connection', async socket => {
     socket.emit('$userStatus', userStatus);
 
     // 推送角色信息
-    const gameRole = await getRoleInfo(server, name);
+    const gameRole = getRoleInfo(server, name);
     socket.emit('$roleInfo', { userId: socket.data.userId, gameRole });
 
     // 推送静态信息
@@ -200,6 +270,24 @@ io.on('connection', async socket => {
             socket.join(getRoomLabel(room._id));
           }
         }
+        break;
+      case 'AtMatching':
+        if (userStatus.matchingId) {
+          const matchingInfo = await findMatchingInfoById(
+            userStatus.matchingId
+          );
+          if (matchingInfo) {
+            const { _id, clientType, teamType, mates, startAt } = matchingInfo;
+            socket.emit('$matchingInfo', {
+              _id,
+              clientType,
+              teamType,
+              mates,
+              startAt,
+            });
+          }
+        }
+        break;
     }
   }
 });
@@ -217,8 +305,75 @@ setInterval(async () => {
   }
 
   //@ts-ignore
-  const matchResult = match(docs, maxMateCountMap);
+  const matchResult = matchJJC(docs, maxMateCountMap);
+  for (const result of matchResult.results) {
+    const mates: MatchingUserGameRole[] = result.mates.map(item => ({
+      userId: item._id,
+      gameRole: getRoleInfo(item.server, item.name),
+      jjcPerf: getJJCPerformance(item.server, item.name),
+      isReady: false,
+    }));
+    const matchingId = createMatchingId();
+    const clientType = clientTypes[result.clientTypeId - 1].label;
+    const teamType = teamTypes[result.teamTypeId - 1].label;
+    const now = new Date();
+    const startAt = getSTimestamp(now);
+
+    // 新建匹配记录
+    await createMatchingInfo({
+      _id: matchingId,
+      clientType,
+      teamType,
+      mates,
+      startAt,
+    });
+
+    for (const mate of result.mates) {
+      // 将用户从匹配列表中删除
+      await deleteMatchingUserRole(mate._id);
+
+      // 更改用户状态
+      await changeUserStatus(mate._id, 'AtMatching');
+      await changeUserIsMatching(mate._id, false);
+      const userStatus = await changeUserMatchingId(mate._id, matchingId);
+
+      // 若在线则推送
+      const mateSocket = userSockets.get(mate._id);
+      if (mateSocket) {
+        mateSocket.emit('$matchingInfo', {
+          _id: matchingId,
+          clientType,
+          teamType,
+          mates,
+          startAt,
+        });
+        mateSocket.emit('$userStatus', userStatus);
+
+        // 加入匹配广播房间
+        mateSocket.join(getMatchingLabel(matchingId));
+      }
+    }
+  }
 
   console.log(`matchResult=${JSON.stringify(matchResult)}`);
 }, 1000);
 logger.info('匹配服务已启动。');
+
+logger.info('准备启动匹配倒计时服务。');
+setInterval(async () => {
+  const res = await findAllMatchingInfo();
+  const docs = res.rows.map(item => item.doc);
+  const now = new Date();
+  const currentTs = getSTimestamp(now);
+  for (const doc of docs) {
+    if (doc) {
+      const delta = currentTs - doc.startAt;
+      if (delta < 60) {
+        io.to(getMatchingLabel(doc._id)).emit('$matchingCountdown', 60 - delta);
+      } else {
+        await endMatching(doc, userSockets);
+      }
+    }
+  }
+}, 1000);
+logger.info('匹配倒计时服务启动成功。');

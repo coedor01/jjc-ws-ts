@@ -1,3 +1,13 @@
+import { Socket } from "socket.io";
+
+export type TypedServerSocket = Socket<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>
+
+
 interface Server {
   id: number;
   name: string;
@@ -20,6 +30,17 @@ interface GameRole {
   serverName: string;
   kungfuId: string;
   panelList: PanelList;
+}
+
+interface JJCPerformance {
+  mmr: number;
+  grade: number;
+  ranking: string;
+  winCount: number;
+  totalCount: number;
+  mvpCount: number;
+  pvpType: string;
+  winRate: number;
 }
 
 interface UserGameRole {
@@ -53,9 +74,29 @@ interface UserStatusDoc {
   isMatching: boolean;
   roomId: string | null;
   teamId: string | null;
+  matchingId: string | null;
+  isMatchingReady: boolean;
 }
 
-type UserStatus = "AtHome" | "AtRoom" | "AtTeam";
+type UserStatus = "AtHome" | "AtRoom" | "AtMatching" | "AtTeam";
+
+interface MatchingUserGameRole extends UserGameRole {
+  jjcPerf: JJCPerformance;
+  isReady: boolean;
+}
+
+interface MatchingInfoDoc {
+  _id: string;
+  clientType: string;
+  teamType: string;
+  mates: MatchingUserGameRole[];
+  startAt: number;
+}
+
+interface TeamInfo {
+  _id: string;
+  mates: UserGameRole[];
+}
 
 interface ServerToClientEvents {
   $error: (code: number, detail: string) => void;
@@ -71,6 +112,10 @@ interface ServerToClientEvents {
   ) => void;
   $roomMembers: (members: UserGameRole[]) => void;
   $roomStatus: (status: string) => void;
+  $matchingInfo: (data: MatchingInfoDoc) => void;
+  $matchingCountdown: (tick: number) => void;
+  $matchingSuccess: (data: TeamInfo) => void;
+  $matchingFailed: () => void;
 }
 
 interface ClientToServerEvents {
@@ -82,6 +127,8 @@ interface ClientToServerEvents {
   $startRoomMatch: (teamTypeId: number, clientTypeId: number) => void;
   $cacnelRoomMatch: () => void;
   $exitRoom: () => void;
+  $acceptMatching: () => void;
+  $rejectMatching: () => void;
 }
 
 interface InterServerEvents {
@@ -94,6 +141,7 @@ interface SocketData {
   name: string;
 }
 
+
 export type {
   Server,
   TeamType,
@@ -101,12 +149,15 @@ export type {
   UserStatus,
   UserStatusDoc,
   GameRole,
+  MatchingUserGameRole,
+  JJCPerformance,
   PanelList,
   UserGameRole,
+  MatchingInfoDoc,
   ServerToClientEvents,
   ClientToServerEvents,
   InterServerEvents,
-  SocketData,
+  SocketData
 };
 
 export { defaultUserGameRole };

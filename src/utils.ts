@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 function readLocalJsonFile(fp: string) {
   // 构造文件的绝对路径
@@ -17,6 +18,14 @@ function getRandomInt(min: number, max: number) {
 
 function getRoomLabel(id: number | string) {
   return `ROOM-${id}`;
+}
+
+function createMatchingId(): string {
+  return uuidv4();
+}
+
+function getMatchingLabel(id: number | string) {
+  return `Matching-${id}`;
 }
 
 function getRoleLabel(server: string, name: string) {
@@ -50,6 +59,8 @@ export {
   getRandomInt,
   getRoomLabel,
   getRoleLabel,
+  createMatchingId,
+  getMatchingLabel,
   calculateBasicAuthNodeDecode,
   getSTimestamp,
 };

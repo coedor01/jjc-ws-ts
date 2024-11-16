@@ -1,5 +1,10 @@
 import PouchDB from 'pouchdb';
-import { UserGameRole, UserStatus, UserStatusDoc } from '../types';
+import {
+  UserGameRole,
+  UserStatus,
+  UserStatusDoc,
+  MatchingInfoDoc,
+} from '../types';
 
 PouchDB.plugin(require('pouchdb-find'));
 
@@ -13,6 +18,8 @@ interface RoomDoc {
 
 interface MatchingUserRoleDoc {
   _id: string;
+  server: string;
+  name: string;
   roomId: string | null;
   startAt: number;
   teamTypeId: number;
@@ -20,7 +27,6 @@ interface MatchingUserRoleDoc {
   kungfuId: string;
   grade: number;
   mmr: number;
-  teamMembersMaxCount: number;
 }
 
 const roomDocs: PouchDB.Database<RoomDoc> = new PouchDB('db/rooms');
@@ -28,13 +34,11 @@ const userStatusDocs: PouchDB.Database<UserStatusDoc> = new PouchDB(
   'db/userStatus'
 );
 const matchingUserRoleDocs: PouchDB.Database<MatchingUserRoleDoc> = new PouchDB(
-  'db/matchingUserRoleDoc'
+  'db/matchingUserRoles'
 );
-userStatusDocs.createIndex({
-  index: {
-    fields: ['isMatching'],
-  },
-});
+const matchingInfoDocs: PouchDB.Database<MatchingInfoDoc> = new PouchDB(
+  'db/matchingInfos'
+);
 
 async function checkExist(
   db: PouchDB.Database<any>,
@@ -62,5 +66,6 @@ export {
   roomDocs,
   userStatusDocs,
   matchingUserRoleDocs,
+  matchingInfoDocs,
   checkExist,
 };

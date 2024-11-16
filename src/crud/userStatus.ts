@@ -13,7 +13,9 @@ async function createUserStatus(
   status: UserStatus = 'AtHome',
   isMatching: boolean = false,
   roomId: string | null = null,
-  teamId: string | null = null
+  teamId: string | null = null,
+  matchingId: string | null = null,
+  isMatchingReady: boolean = false
 ): Promise<UserStatusDoc> {
   const res = await userStatusDocs.put({
     _id,
@@ -21,6 +23,8 @@ async function createUserStatus(
     isMatching,
     roomId,
     teamId,
+    matchingId,
+    isMatchingReady,
   });
   const doc = await userStatusDocs.get(res.id);
   return doc;
@@ -66,6 +70,26 @@ async function changeUserTeamId(
   return doc;
 }
 
+async function changeUserMatchingId(
+  _id: string,
+  matchingId: string | null
+): Promise<UserStatusDoc> {
+  const doc = await userStatusDocs.get(_id);
+  doc.matchingId = matchingId;
+  userStatusDocs.put(doc);
+  return doc;
+}
+
+async function changeUserIsMatchingReady(
+  _id: string,
+  isMatchingReady: boolean
+): Promise<UserStatusDoc> {
+  const doc = await userStatusDocs.get(_id);
+  doc.isMatchingReady = isMatchingReady;
+  userStatusDocs.put(doc);
+  return doc;
+}
+
 export {
   findUserStatusById,
   createUserStatus,
@@ -73,4 +97,6 @@ export {
   changeUserIsMatching,
   changeUserRoomId,
   changeUserTeamId,
+  changeUserMatchingId,
+  changeUserIsMatchingReady,
 };

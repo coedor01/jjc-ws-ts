@@ -57,6 +57,7 @@
     "pouchdb": "^9.0.0",
     "pouchdb-find": "^9.0.0",
     "socket.io": "^4.8.1",
+    "uuid": "^11.0.3",
     "winston": "^3.17.0"
   }
 }
