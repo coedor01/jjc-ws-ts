@@ -18,6 +18,7 @@ import {
   changeUserIsMatching,
   changeUserMatchingId,
   changeUserIsMatchingReady,
+  changeUserTeamId,
 } from './crud/userStatus';
 import {
   hasRoom,
@@ -30,6 +31,7 @@ import { getRoleInfo, getJJCPerformance } from './api';
 import {
   createMatchingId,
   getMatchingLabel,
+  getMSTimestamp,
   getRandomInt,
   getRoomLabel,
   getSTimestamp,
@@ -47,6 +49,7 @@ import {
   changeMatchingInfoMates,
   findAllMatchingInfo,
 } from './crud/matchingInfos';
+import { createTeamInfo } from './crud/teamInfos';
 
 logger.info('准备启动 Socket.IO 服务');
 
@@ -195,21 +198,59 @@ io.on('connection', async socket => {
             newMates.push(mate);
           }
         }
-        const newMatchingInfo = await changeMatchingInfoMates(
-          userStatus.matchingId,
-          newMates
-        );
-        io.to(getMatchingLabel(userStatus.matchingId)).emit(
-          '$matchingInfo',
-          newMatchingInfo
-        );
 
-        // 修改用户的准备状态
-        const newUserStatus = await changeUserIsMatchingReady(
-          socket.data.userId,
-          true
-        );
-        socket.emit('$userStatus', newUserStatus);
+        if (newMates.filter(item => item.isReady).length === newMates.length) {
+          // 全部人都准备了
+
+          const now = new Date();
+          const startAt = getMSTimestamp(now);
+
+          // 新建队伍记录
+          const teamInfo = await createTeamInfo({
+            _id: matchingInfo._id,
+            clientType: matchingInfo.clientType,
+            teamType: matchingInfo.teamType,
+            mates: matchingInfo.mates,
+            startAt,
+          });
+
+          // 删除匹配记录
+          await deleteMatchingInfo(matchingInfo._id);
+
+          // 给队伍中的人推送队伍信息
+          io.to(getMatchingLabel(teamInfo._id)).emit('$teamInfo', teamInfo);
+
+          // 给队伍中每个人更新状态信息
+          for (const mate of teamInfo.mates) {
+            await changeUserIsMatchingReady(mate.userId, false);
+            await changeUserTeamId(mate.userId, teamInfo._id);
+            await changeUserMatchingId(mate.userId, null);
+            const userStatus = await changeUserStatus(mate.userId, 'AtTeam');
+            const mateSocket = userSockets.get(mate.userId);
+
+            // 如果在线则推送
+            if (mateSocket) {
+              mateSocket.emit('$userStatus', userStatus);
+            }
+          }
+        } else {
+          // 还有人没准备
+          const newMatchingInfo = await changeMatchingInfoMates(
+            userStatus.matchingId,
+            newMates
+          );
+          io.to(getMatchingLabel(userStatus.matchingId)).emit(
+            '$matchingInfo',
+            newMatchingInfo
+          );
+
+          // 修改用户的准备状态
+          const newUserStatus = await changeUserIsMatchingReady(
+            socket.data.userId,
+            true
+          );
+          socket.emit('$userStatus', newUserStatus);
+        }
       }
     }
   });
@@ -285,6 +326,7 @@ io.on('connection', async socket => {
               mates,
               startAt,
             });
+            socket.join(getMatchingLabel(matchingInfo._id));
           }
         }
         break;

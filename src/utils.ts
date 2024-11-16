@@ -54,6 +54,10 @@ function getSTimestamp(date: Date) {
   return Math.floor(date.getTime() / 1000);
 }
 
+function getMSTimestamp(date: Date) {
+  return date.getTime();
+}
+
 export {
   readLocalJsonFile,
   getRandomInt,
@@ -63,4 +67,5 @@ export {
   getMatchingLabel,
   calculateBasicAuthNodeDecode,
   getSTimestamp,
+  getMSTimestamp,
 };

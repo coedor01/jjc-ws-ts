@@ -4,6 +4,7 @@ import {
   UserStatus,
   UserStatusDoc,
   MatchingInfoDoc,
+  TeamInfoDoc,
 } from '../types';
 
 PouchDB.plugin(require('pouchdb-find'));
@@ -29,6 +30,7 @@ interface MatchingUserRoleDoc {
   mmr: number;
 }
 
+
 const roomDocs: PouchDB.Database<RoomDoc> = new PouchDB('db/rooms');
 const userStatusDocs: PouchDB.Database<UserStatusDoc> = new PouchDB(
   'db/userStatus'
@@ -38,6 +40,9 @@ const matchingUserRoleDocs: PouchDB.Database<MatchingUserRoleDoc> = new PouchDB(
 );
 const matchingInfoDocs: PouchDB.Database<MatchingInfoDoc> = new PouchDB(
   'db/matchingInfos'
+);
+const teamInfoDocs: PouchDB.Database<TeamInfoDoc> = new PouchDB(
+  'db/teamInfos'
 );
 
 async function checkExist(
@@ -59,13 +64,16 @@ async function checkExist(
 }
 
 export {
-  RoomDoc,
-  UserStatusDoc,
-  UserStatus,
-  MatchingUserRoleDoc,
   roomDocs,
   userStatusDocs,
   matchingUserRoleDocs,
   matchingInfoDocs,
+  teamInfoDocs,
   checkExist,
 };
+export type {
+  RoomDoc,
+  UserStatusDoc,
+  UserStatus,
+  MatchingUserRoleDoc,
+}

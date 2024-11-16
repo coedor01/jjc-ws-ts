@@ -7,6 +7,7 @@ import {
 } from './crud/userStatus';
 import { findRoomById } from './crud/rooms';
 import { MatchingInfoDoc, TypedServerSocket } from './types';
+import { getMatchingLabel } from './utils';
 
 async function getUserRoom(userId: string): Promise<RoomDoc | null> {
   const userStatus = await findUserStatusById(userId);
@@ -123,24 +124,23 @@ async function endMatching(
   matchingInfo: MatchingInfoDoc,
   userSockets: Map<string, TypedServerSocket>
 ) {
-  if (matchingInfo?.mates) {
-    for (const mate of matchingInfo.mates) {
-      const userStatus = await findUserStatusById(mate.userId);
-      if (userStatus) {
-        // 如果用户有房间则退回到房间，如果没有则退回到主页
-        if (userStatus.roomId) {
-          await changeUserStatus(mate.userId, 'AtRoom');
-        } else {
-          await changeUserStatus(mate.userId, 'AtHome');
-        }
-        await changeUserIsMatchingReady(mate.userId, false);
-        const newUserStatus = await changeUserMatchingId(mate.userId, null);
+  for (const mate of matchingInfo.mates) {
+    const userStatus = await findUserStatusById(mate.userId);
+    if (userStatus) {
+      // 如果用户有房间则退回到房间，如果没有则退回到主页
+      if (userStatus.roomId) {
+        await changeUserStatus(mate.userId, 'AtRoom');
+      } else {
+        await changeUserStatus(mate.userId, 'AtHome');
+      }
+      await changeUserIsMatchingReady(mate.userId, false);
+      const newUserStatus = await changeUserMatchingId(mate.userId, null);
 
-        // 如果用户在线则推送状态
-        const mateSocket = userSockets.get(mate.userId);
-        if (mateSocket) {
-          mateSocket.emit('$userStatus', newUserStatus);
-        }
+      // 如果用户在线则推送状态，并退出队内广播
+      const mateSocket = userSockets.get(mate.userId);
+      if (mateSocket) {
+        mateSocket.emit('$userStatus', newUserStatus);
+        mateSocket.leave(getMatchingLabel(matchingInfo._id));
       }
     }
   }

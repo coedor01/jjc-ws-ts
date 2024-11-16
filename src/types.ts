@@ -93,9 +93,29 @@ interface MatchingInfoDoc {
   startAt: number;
 }
 
-interface TeamInfo {
+type MessageType = 'Text'
+
+interface Message{
+  id: number;
+  sender: {
+    _id: string;
+    server: string;
+    name: string;
+  };
+  content: {
+    type: MessageType;
+    data: any;
+  };
+  sendAt: number
+}
+
+interface TeamInfoDoc {
   _id: string;
+  clientType: string;
+  teamType: string;
   mates: UserGameRole[];
+  startAt: number;
+  messages: Message[];
 }
 
 interface ServerToClientEvents {
@@ -114,8 +134,7 @@ interface ServerToClientEvents {
   $roomStatus: (status: string) => void;
   $matchingInfo: (data: MatchingInfoDoc) => void;
   $matchingCountdown: (tick: number) => void;
-  $matchingSuccess: (data: TeamInfo) => void;
-  $matchingFailed: () => void;
+  $teamInfo: (data: TeamInfoDoc) => void;
 }
 
 interface ClientToServerEvents {
@@ -157,7 +176,10 @@ export type {
   ServerToClientEvents,
   ClientToServerEvents,
   InterServerEvents,
-  SocketData
+  SocketData,
+  MessageType,
+  TeamInfoDoc,
+  Message
 };
 
 export { defaultUserGameRole };
